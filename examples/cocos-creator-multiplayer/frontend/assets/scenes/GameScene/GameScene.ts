@@ -77,7 +77,7 @@ export class GameScene extends Component {
     update(dt: number) {
         this.gameManager.localTimePast();
 
-        // Send Inputs
+        // 玩家自己通过 sendClientInput 直接客户端预演加发送至服务器
         if (this._selfSpeed && this._selfSpeed.lengthSqr()) {
             this._selfSpeed.normalize().multiplyScalar(gameConfig.moveSpeed);
             this.gameManager.sendClientInput({
@@ -89,7 +89,7 @@ export class GameScene extends Component {
                 dt: dt
             })
         }
-
+        
         this._updatePlayers();
 
         this._updateAttackIndicator();

@@ -49,11 +49,11 @@ export class Player extends Component {
             }
         }
 
-        this.isSelf ? this._resetState(state, now) : this._tweenState(state, now);
+        this.isSelf ? this._updateSelfDisplay(state, now) : this._tweenState(state, now);
     }
 
-    // 直接更新
-    private _resetState(state: PlayerState, now: number) {
+    // 玩家自己的直接更新
+    private _updateSelfDisplay(state: PlayerState, now: number) {
         // 更新位置
         this._targetPos.set(state.pos.x, 0, -state.pos.y);
         if (!this.node.position.equals(this._targetPos)) {

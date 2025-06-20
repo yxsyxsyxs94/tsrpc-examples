@@ -26,7 +26,7 @@ export class GameManager {
         return this.gameSystem.state;
     }
 
-    constructor() {
+    constructor () {
         // Use browser client or miniapp client depend on the platform 
         let client = this.client = new (MINIGAME ? WsClientMiniapp : WsClientBrowser)(serviceProto, {
             server: `ws://${location.hostname}:3000`,
@@ -89,12 +89,15 @@ export class GameManager {
         for (let input of frame.inputs) {
             this.gameSystem.applyInput(input);
         }
+
+        //记录这次的权威状态
         this.lastServerState = Object.merge({}, this.gameSystem.state);
         this.lastRecvSetverStateTime = Date.now();
 
         // 和解 = 权威状态 + 本地输入 （最新的本地预测状态）
         let lastSn = frame.lastSn ?? -1;
         this.pendingInputMsgs.remove(v => v.sn <= lastSn);
+        //本地的自己的pendingInputMsgs重新apply
         this.pendingInputMsgs.forEach(m => {
             m.inputs.forEach(v => {
                 this.gameSystem.applyInput({
@@ -112,7 +115,7 @@ export class GameManager {
             return;
         }
 
-        // 构造消息
+        // 构造消息，sn 递增
         let msg: MsgClientInput = {
             sn: ++this.lastSN,
             inputs: [input]

@@ -21,9 +21,9 @@ export class Room {
     playerLastSn: { [playerId: number]: number | undefined } = {};
     lastSyncTime?: number;
 
-    constructor(server: WsServer<ServiceType>) {
+    constructor (server: WsServer<ServiceType>) {
         this.server = server;
-        setInterval(() => { this.sync() }, 1000 / this.syncRate);
+        setInterval(() => { this.onLogicFrameUpdate() }, 1000 / this.syncRate);
     }
 
     /** 加入房间 */
@@ -37,14 +37,17 @@ export class Room {
                 y: Math.random() * 10 - 5
             }
         }
-        this.applyInput(input);
+        //玩家加入时，初始化，将玩家位置添加pendingInputs中,等待下一帧发送
+        this.addPendingInput(input);
 
         this.conns.push(conn);
         conn.playerId = input.playerId;
+        //监听玩家输入
         conn.listenMsg('client/ClientInput', call => {
             this.playerLastSn[input.playerId] = call.msg.sn;
+            //收到玩家输入，append到待处理输入列表
             call.msg.inputs.forEach(v => {
-                this.applyInput({
+                this.addPendingInput({
                     ...v,
                     playerId: input.playerId
                 });
@@ -54,31 +57,31 @@ export class Room {
         return input.playerId;
     }
 
-    applyInput(input: GameSystemInput) {
+    addPendingInput(input: GameSystemInput) {
         this.pendingInputs.push(input);
     }
 
-    sync() {
+    onLogicFrameUpdate() {
+        // 获取收集到的输入
         let inputs = this.pendingInputs;
+        // 清除 pendingInputs，为下一帧准备
         this.pendingInputs = [];
-
-        // Apply inputs
+        // 将 pending 的输入应用到游戏系统
         inputs.forEach(v => {
             this.gameSystem.applyInput(v)
         });
-
-        // Apply TimePast
+        // 将这次frame的dt计算 然后添加到pending中
         let now = process.uptime() * 1000;
-        this.applyInput({
+        this.addPendingInput({
             type: 'TimePast',
             dt: now - (this.lastSyncTime ?? now)
         });
         this.lastSyncTime = now;
-
-        // 发送同步帧
+        // 发送所有pendingInputs 到所有玩家
         this.conns.forEach(v => {
             v.sendMsg('server/Frame', {
                 inputs: inputs,
+                // 发送当前玩家的最后一条输入 SN
                 lastSn: this.playerLastSn[v.playerId!]
             })
         });
@@ -87,7 +90,7 @@ export class Room {
     /** 离开房间 */
     leave(playerId: number, conn: WsConnection<ServiceType>) {
         this.conns.removeOne(v => v.playerId === playerId);
-        this.applyInput({
+        this.addPendingInput({
             type: 'PlayerLeave',
             playerId: playerId
         });
